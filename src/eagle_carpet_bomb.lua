@@ -152,12 +152,10 @@ local CONFIG = {
 
     -- ===== 运行参数 =====
     recheck_seconds     = 5,
-    -- 全字段复查间隔:recheck 只盯"功能字段"(payload/count/selectable/origin/ctype),
-    -- description / 图标 / 冷却 / call-in 它不管。每隔这么久直接重跑一遍完整的 patch_carpet ——
-    -- 健康时它回 "already"(一个字节都不写),真被冲掉了才会写并打一行 PATCHED。
-    sweep_seconds       = 120,
+    -- 全字段复查间隔: 0 禁用定期重跑, 避免稳态下耗时重新解析103条战备
+    sweep_seconds       = 0,
     status_seconds      = 10,
-    maintain_seconds    = 25,
+    maintain_seconds    = 0,        -- 0 = 禁用周期飞鹰重扫(消灭每25秒遍历全进程VirtualQuery)
     deep_seconds        = 0,         -- 0 = 禁用全量周期重扫(消灭每10分钟掉帧半分钟的问题)
     -- 这只是"这看起来是张真表吗"的地板值,不是构建常量:真正的把关是
     -- load_records 的"id 命中率 >= 60%" + 偏移反推的"断层"判据 + CARPET BOMB 指纹。
@@ -167,12 +165,8 @@ local CONFIG = {
     verbose             = false,
 
     -- ===== 抗漂移:扫描节奏 =====
-    -- 实测:同一张 StratagemSettings 在内存里有**两整套**(8 个区块 x2 = 148 条记录),
-    -- 而其中一套是在启动第 5 帧收集 region 列表**之后**才分配出来的 —— 所以"打完一次就收工"
-    -- 只会打到一半的副本,游戏很可能正好用没打到的那一套。
-    -- 下面三个参数让它打完继续补扫,把后出现的副本并进来一起打。
-    expand_seconds      = 20,       -- 第一轮打完后,每隔多久再做一轮补扫
-    max_expand_rounds   = 4,        -- 连续补扫最多几轮(之后交给 deep_seconds 全量兜底)
+    expand_seconds      = 0,        -- 0 = 禁用周期全量补扫(消灭每20秒一轮的重扫卡顿)
+    max_expand_rounds   = 0,
     region_refresh_sec  = 10,       -- 单轮扫描中途重新收集 region 列表的间隔(抓新分配的内存区)
     min_region_bytes    = 16384,    -- 小于它的 region 不扫(最大那个区块约 19KB;原来写 64KB 会漏)
     need_log_limit      = 64,       -- "为什么需要重打"的诊断上限(每个副本一次)
@@ -3013,8 +3007,11 @@ local function tick()
         if not state.eagle_found then
             if state.eagle_regions then
                 eagle_step()          -- 正在扫:一直推进,别按冷却等
-            elseif (state.frames - (state.last_eagle_try or 0)) >= secs(CONFIG.maintain_seconds) then
+            elseif CONFIG.maintain_seconds and CONFIG.maintain_seconds > 0
+                and (state.eagle_rounds or 0) < 2
+                and (state.frames - (state.last_eagle_try or 0)) >= secs(CONFIG.maintain_seconds) then
                 state.last_eagle_try = state.frames
+                state.eagle_rounds = (state.eagle_rounds or 0) + 1
                 eagle_step()
             end
         end
@@ -3104,7 +3101,8 @@ if type(original_update) == "function" then
     local my_update
     my_update = function(...)
         state.frames = state.frames + 1
-        local due = (state.frames % SCAN_EVERY) == 0
+        local cadence = (state.phase == "patched") and 60 or SCAN_EVERY
+        local due = (state.frames % cadence) == 0
         if not state.retired and CONFIG.enabled and state.frames >= START_FRAME and due then
             local ok, err = pcall(tick)
             if not ok then

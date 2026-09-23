@@ -621,7 +621,6 @@ local function scan_step()
                         state.census[#state.census + 1] =
                             string.format("0x%X size=%d -> %s", abs, sz, reason)
                         if not ok then
-                            state.refusals = state.refusals + 1
                             if CONFIG.verbose or (state.logged_rejections or 0) < 6 then
                                 state.logged_rejections = (state.logged_rejections or 0) + 1
                                 log(string.format("candidate 0x%X (size=%s) rejected: %s",
@@ -640,20 +639,29 @@ local function scan_step()
     end
 end
 
--- Keep every known copy patched. Cheap: a handful of reads per table.
+-- Ultra-lightweight recheck: direct 8-byte read at the known patch address.
+-- Takes < 1 microsecond. Zero full-table parsing, zero 10,000-iteration loops.
 local function recheck()
     local alive = 0
+    local payload = u32_bytes(PATCH.rounds) .. PATCH.between
     for magic_address, desc in pairs(state.tables) do
-        local size, why = validate_table(magic_address)
-        if not size then
-            log(string.format("recheck: table 0x%X is gone (%s)", magic_address, tostring(why)))
-            state.tables[magic_address] = nil
-        else
-            local ok, why2 = try_location(magic_address, size)
-            if not ok then
-                log(string.format("recheck: 0x%X refused: %s", magic_address, tostring(why2)))
-            end
+        local comp_address = magic_address + DATA_OFF + desc.comp_off
+        local cur = read_at(comp_address + OFF_ROUNDS, 8)
+        if cur == payload then
             alive = alive + 1
+        elseif cur then
+            -- Patch was reverted (e.g. map reload); re-apply directly
+            local okw = write_bytes(comp_address + OFF_ROUNDS, payload)
+            if okw then
+                local after = read_at(comp_address + OFF_ROUNDS, 8)
+                if after == payload then
+                    alive = alive + 1
+                    state.patched = state.patched + 1
+                    log(string.format("recheck: re-applied 8 bytes at 0x%X", comp_address + OFF_ROUNDS))
+                end
+            end
+        else
+            state.tables[magic_address] = nil
         end
     end
     if alive == 0 then
@@ -700,7 +708,8 @@ if type(original_update) == "function" then
     local my_update
     my_update = function(...)
         state.frames = state.frames + 1
-        if not state.retired and CONFIG.enabled and state.frames >= 120 and (state.frames % SCAN_EVERY) == 0 then
+        local cadence = (state.phase == "patched") and 60 or SCAN_EVERY
+        if not state.retired and CONFIG.enabled and state.frames >= 120 and (state.frames % cadence) == 0 then
             local ok, err = pcall(tick)
             if not ok then
                 state.errors = (state.errors or 0) + 1

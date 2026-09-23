@@ -335,6 +335,8 @@ local function try_location(magic_address, size)
     if not payload then return false, second end
 
     local slot1_address = magic_address + DATA_OFF + second
+    rack.slot1_addr = slot1_address
+    rack.payload = payload
     local before = read_at(slot1_address, ATTACH_SIZE)
     write_file("original_slot1_" .. string.format("%X", magic_address) .. ".hex",
         string.format("table=0x%X|rack_index=%.2f|slot1=0x%X|offset_from_magic=%d|table_size=%d|grid_ok=%s",
@@ -491,7 +493,6 @@ local function scan_step()
                         state.census[#state.census + 1] =
                             string.format("0x%X size=%s -> %s", abs, tostring(size), ok and "patched" or tostring(why))
                         if not ok then
-                            state.refusals = state.refusals + 1
                             if CONFIG.verbose and why then
                                 log(string.format("candidate 0x%X rejected: %s", abs, tostring(why)))
                             end
@@ -508,30 +509,33 @@ local function scan_step()
     end
 end
 
--- Keep every known copy patched (a handful of reads per copy, every few seconds).
+-- Ultra-lightweight recheck: direct 8-byte read at slot1_address.
+-- Takes < 1 microsecond. Avoids ambiguous resolve_rack re-parsing once slot 1 carries the item.
 local function recheck()
     local alive = 0
-    for magic_address in pairs(state.tables) do
-        local size, why = validate_table(magic_address)
-        if not size then
-            log(string.format("recheck: table 0x%X is gone (%s)", magic_address, tostring(why)))
-            state.tables[magic_address] = nil
-        else
-            local rack, why2 = resolve_rack(magic_address, size)
-            if rack then
-                local payload, second = build_slot1(rack)
-                if payload == "already" then
-                    state.tables[magic_address] = rack
-                    alive = alive + 1
-                else
-                    local ok, why3 = try_location(magic_address, size)
-                    if ok then alive = alive + 1
-                    else log(string.format("recheck: 0x%X re-patch refused: %s",
-                        magic_address, tostring(why3))) end
-                end
-            else
-                log(string.format("recheck: 0x%X no Leveller rack (%s)", magic_address, tostring(why2)))
+    for magic_address, rack in pairs(state.tables) do
+        local slot1_address = rack.slot1_addr or (magic_address + DATA_OFF + rack.rack0 + ATTACH_SIZE)
+        local cur = read_at(slot1_address, 8)
+        if cur == LEVELLER_ITEM then
+            alive = alive + 1
+        elseif cur then
+            local payload = rack.payload
+            if not payload or payload == "already" then
+                payload = build_slot1(rack)
             end
+            if payload and payload ~= "already" then
+                local okw = write_bytes(slot1_address, payload)
+                if okw then
+                    local after = read_at(slot1_address, 8)
+                    if after == LEVELLER_ITEM then
+                        alive = alive + 1
+                        state.patched = state.patched + 1
+                        log(string.format("recheck: re-applied slot 1 at 0x%X", slot1_address))
+                    end
+                end
+            end
+        else
+            state.tables[magic_address] = nil
         end
     end
     if alive == 0 then
@@ -576,7 +580,8 @@ if type(original_update) == "function" then
     local my_update
     my_update = function(...)
         state.frames = state.frames + 1
-        if not state.retired and CONFIG.enabled and state.frames >= 120 and (state.frames % SCAN_EVERY) == 0 then
+        local cadence = (state.phase == "patched") and 60 or SCAN_EVERY
+        if not state.retired and CONFIG.enabled and state.frames >= 120 and (state.frames % cadence) == 0 then
             local ok, err = pcall(tick)
             if not ok then
                 state.errors = (state.errors or 0) + 1

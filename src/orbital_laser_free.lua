@@ -1089,7 +1089,8 @@ if type(original_update) == "function" then
     local my_update
     my_update = function(...)
         state.frames = state.frames + 1
-        if not state.retired and CONFIG.enabled and state.frames >= 120 and (state.frames % SCAN_EVERY) == 0 then
+        local cadence = (state.phase == "patched") and 60 or SCAN_EVERY
+        if not state.retired and CONFIG.enabled and state.frames >= 120 and (state.frames % cadence) == 0 then
             local ok, err = pcall(tick)
             if not ok then
                 state.errors = (state.errors or 0) + 1

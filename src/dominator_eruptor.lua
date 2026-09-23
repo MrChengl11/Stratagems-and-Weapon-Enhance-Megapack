@@ -821,6 +821,8 @@ local function apply()
     if payload == dst_rec then
         state.applied = true
         state.status = "already_applied"
+        state.dst_addr = dst_addr
+        state.payload = payload
         return
     end
 
@@ -834,6 +836,8 @@ local function apply()
     if check and check == payload then
         state.applied = true
         state.status = "applied"
+        state.dst_addr = dst_addr
+        state.payload = payload
         log(string.format("APPLIED: %s (record %d) -> Dominator (record %d), type kept at %d",
             src_label, src, dst, dst_type))
         log(string.format("  addresses 0x%X -> 0x%X", src_addr, dst_addr))
@@ -850,6 +854,13 @@ end
 
 local function verify()
     if not state.applied then return end
+    -- Fast direct check (< 1 microsecond): avoid scanning 350 records and decoding floats in Lua
+    if state.dst_addr and state.payload then
+        local check = read_at(state.dst_addr, #state.payload)
+        if check == state.payload then
+            return -- Intact
+        end
+    end
     local dst = find_target_index()
     if not dst then return end
     local _, dst_rec = record_at(dst)
