@@ -28,7 +28,7 @@ Built for use with **Bingus Shared Loader (v15+)**, this megapack provides both 
 | 🛰️ **Orbital Laser Free** | Unlimited uses + 180s Cooldown | Removes the 3-use mission limit; reduces cooldown from 300s to 180s. |
 | 💥 **Double 380mm Barrage** | 2x Artillery Saturation | Doubles the total shells fired during the 380mm HE barrage within the same duration. |
 | 🚀 **Double Leveller** | 2x EAT-411 Hellpod Drop | Hellpod drops two Leveller launchers instead of one. |
-| 🦅 **Eagle Carpet Bomb** | Heavy Carpet Bomb Restored | Restores the hidden Eagle Carpet Bomb stratagem (hijacks the eagle somoke  slot). |
+| 🦅 **Eagle Carpet Bomb** | Heavy Carpet Bomb Restored | Restores the hidden Eagle Carpet Bomb stratagem (hijacks the eagle smoke  slot). |
 | 🎯 **Dominator - Eruptor Round** | R-36 Explosive Shrapnel | Equips the JAR-5 Dominator with R-36 Eruptor explosive armor-piercing projectile. |
 | 🔫 **Dominator - Bolt Pistol Round** | GP-31 Explosive Round | Equips the JAR-5 Dominator with high-rate-of-fire GP-31 explosive bolt projectile. |
 
