@@ -28,7 +28,7 @@ Built for use with **Bingus Shared Loader (v15+)**, this megapack provides both 
 | 🛰️ **Orbital Laser Free** | Unlimited uses + 180s Cooldown | Removes the 3-use mission limit; reduces cooldown from 300s to 180s. |
 | 💥 **Double 380mm Barrage** | 2x Artillery Saturation | Doubles the total shells fired during the 380mm HE barrage within the same duration. |
 | 🚀 **Double Leveller** | 2x EAT-411 Hellpod Drop | Hellpod drops two Leveller launchers instead of one. |
-| 🦅 **Eagle Carpet Bomb** | Heavy Carpet Bomb Restored | Restores the hidden Eagle Carpet Bomb stratagem (hijacks the 110mm Rocket Pod slot). |
+| 🦅 **Eagle Carpet Bomb** | Heavy Carpet Bomb Restored | Restores the hidden Eagle Carpet Bomb stratagem (hijacks the eagle somoke  slot). |
 | 🎯 **Dominator - Eruptor Round** | R-36 Explosive Shrapnel | Equips the JAR-5 Dominator with R-36 Eruptor explosive armor-piercing projectile. |
 | 🔫 **Dominator - Bolt Pistol Round** | GP-31 Explosive Round | Equips the JAR-5 Dominator with high-rate-of-fire GP-31 explosive bolt projectile. |
 
@@ -111,7 +111,7 @@ python verify_pack.py
 3. **🚀 双倍荡平者空投 (Double Leveller)**
    - 呼叫 EAT-411 荡平者空投舱时，一次性掉落两根发射器（原版为 1 根）。
 4. **🦅 飞鹰地毯式空袭 (Eagle Carpet Bomb)**
-   - 完美恢复游戏未发布的重型飞鹰地毯空袭（借壳飞鹰 110mm 火箭巢槽位）。
+   - 完美恢复游戏未发布的重型飞鹰地毯空袭（借壳飞鹰烟雾槽位）。
 5. **🎯 主宰发射爆裂铳弹药 (Dominator - R-36 Eruptor Round)**
    - 为 JAR-5 主宰装备 R-36 爆裂铳的强力爆炸穿甲破片弹头。
 6. **🔫 主宰发射爆弹枪弹药 (Dominator - GP-31 Bolt Pistol Round)**
