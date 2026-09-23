@@ -1,0 +1,36 @@
+# Antigravity & IDE files
+.agents/
+.idea/
+.vscode/
+*.swp
+*.bak
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Logs and scratch test outputs
+*.log
+*.txt
+!README.txt
+!dist/README.txt
+
+# External mod samples & extracted files
+mod_sample/
+extracted/
+scratch/
+_work/
+built_mods/
+fixed_sources/
+
+# Root loose zips (release archives are kept organized in dist/)
+/*.zip
+
+# Dist / Releases:
+# Allow dist/ and the release zip packages to be tracked in repository
+!dist/
+!dist/*.zip
+!dist/README.txt
