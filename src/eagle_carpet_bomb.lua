@@ -155,7 +155,7 @@ local CONFIG = {
     -- 全字段复查间隔: 0 禁用定期重跑, 避免稳态下耗时重新解析103条战备
     sweep_seconds       = 0,
     status_seconds      = 10,
-    maintain_seconds    = 0,        -- 0 = 禁用周期飞鹰重扫(消灭每25秒遍历全进程VirtualQuery)
+    maintain_seconds    = 10,       -- 飞鹰表搜寻重试间隔(秒);找到后 eagle_found=true 永久休眠
     deep_seconds        = 0,         -- 0 = 禁用全量周期重扫(消灭每10分钟掉帧半分钟的问题)
     -- 这只是"这看起来是张真表吗"的地板值,不是构建常量:真正的把关是
     -- load_records 的"id 命中率 >= 60%" + 偏移反推的"断层"判据 + CARPET BOMB 指纹。
@@ -2258,7 +2258,10 @@ local function eagle_step()
         end
     end
     state.eagle_hits = (state.eagle_hits or 0) + hits
-    if state.eagle_targets and #state.eagle_targets > 0 then state.eagle_found = true end
+    if state.eagle_targets and #state.eagle_targets > 0 then
+        state.eagle_found = true
+        state.eagle_regions = nil
+    end
 end
 
 -- ------------------------------------------------------------- loader 闸门 --
@@ -2949,6 +2952,15 @@ local function recheck()
             end
         end
     end
+
+    -- 飞鹰打击实体快速复查(直接读 4 字节 payload 枚举,开销 < 100 纳秒)
+    for i = 1, #(state.eagle_targets or {}) do
+        local ent = state.eagle_targets[i]
+        local cur = read_at(ent.addr + 16, 4)
+        if cur and u32_at(cur, 1) ~= EAGLE_PAYLOAD_CARPET then
+            apply_eagle(ent.addr)
+        end
+    end
     if state.patched > 0 then state.phase = "patched" end
 end
 
@@ -3007,9 +3019,7 @@ local function tick()
         if not state.eagle_found then
             if state.eagle_regions then
                 eagle_step()          -- 正在扫:一直推进,别按冷却等
-            elseif CONFIG.maintain_seconds and CONFIG.maintain_seconds > 0
-                and (state.eagle_rounds or 0) < 2
-                and (state.frames - (state.last_eagle_try or 0)) >= secs(CONFIG.maintain_seconds) then
+            elseif not state.last_eagle_try or (state.frames - state.last_eagle_try) >= secs(CONFIG.maintain_seconds or 10) then
                 state.last_eagle_try = state.frames
                 state.eagle_rounds = (state.eagle_rounds or 0) + 1
                 eagle_step()
@@ -3101,7 +3111,8 @@ if type(original_update) == "function" then
     local my_update
     my_update = function(...)
         state.frames = state.frames + 1
-        local cadence = (state.phase == "patched") and 60 or SCAN_EVERY
+        local ready = (state.phase == "patched" and state.eagle_found)
+        local cadence = ready and 60 or SCAN_EVERY
         local due = (state.frames % cadence) == 0
         if not state.retired and CONFIG.enabled and state.frames >= START_FRAME and due then
             local ok, err = pcall(tick)
